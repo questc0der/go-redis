@@ -34,7 +34,7 @@ func handleConnection(conn net.Conn) {
 		}
 	}	
 		fmt.Printf("%q\n", line)
-		if command[0] == "PING"{
+		if strings.ToUpper(command[0]) == "PING"{
 			conn.Write([]byte("+PONG\r\n"))
 		}
 	}
