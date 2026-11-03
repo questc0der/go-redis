@@ -10,9 +10,11 @@ import  (
 	"strings"
 )
 
+
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
+	args := make(map[string]string)
 	for {
 		var command []string
 
@@ -49,9 +51,23 @@ func handleConnection(conn net.Conn) {
 			} else{
 				conn.Write([]byte("-ERR Wrong number of argument for 'echo' command\r\n"))
 			}
-
 		case "COMMAND":
 			conn.Write([]byte("+Empty\r\n"))
+		case "SET":
+			if len(command) > 2{
+				args[command[1]] = command[2]
+				conn.Write([]byte("+OK\r\n"))
+			}else{
+				conn.Write([]byte("-ERR wrong number of argument for 'set' command\r\n"))
+			}
+		case "GET":
+			var response []byte
+			if len(command) > 1{
+				response = fmt.Appendf(response, "$%d\r\n%s\r\n", len(args[command[1]]), args[command[1]])
+				conn.Write(response)
+			}else{
+				conn.Write([]byte("-ERR wrong number of argument for 'get' command\r\n"))
+			}
 		default:
 			conn.Write([]byte("-Error unknown command\r\n"))
 		}
