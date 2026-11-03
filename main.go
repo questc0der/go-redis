@@ -34,15 +34,28 @@ func handleConnection(conn net.Conn) {
 			}
 		}
 	}	
-		fmt.Printf("%q\n", line, command[0])
+		fmt.Printf("%q\n", line)
+		if len(command[0]) == 0 {
+			continue
+		}
 		switch strings.ToUpper(command[0]){
 		case "PING":
 			conn.Write([]byte("+PONG\r\n"))
+		case "ECHO":
+			var response []byte
+			if len(command) > 1 {
+				response = fmt.Appendf(response, "$%d\r\n%s\r\n", len(command[1]), command[1])
+				conn.Write(response)
+			} else{
+				conn.Write([]byte("-ERR Wrong number of argument for 'echo' command\r\n"))
+			}
+
 		case "COMMAND":
 			conn.Write([]byte("+Empty\r\n"))
 		default:
-			conn.Write([]byte("+Error\r\n"))
+			conn.Write([]byte("-Error unknown command\r\n"))
 		}
+		
 	}
 }
 
