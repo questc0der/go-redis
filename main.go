@@ -13,8 +13,9 @@ import  (
 func handleConnection(conn net.Conn) {
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
-	var command []string
 	for {
+		var command []string
+
 		line, err := reader.ReadString('\n')
 		if err != nil {
 			if err != io.EOF {
@@ -33,9 +34,14 @@ func handleConnection(conn net.Conn) {
 			}
 		}
 	}	
-		fmt.Printf("%q\n", line)
-		if strings.ToUpper(command[0]) == "PING"{
+		fmt.Printf("%q\n", line, command[0])
+		switch strings.ToUpper(command[0]){
+		case "PING":
 			conn.Write([]byte("+PONG\r\n"))
+		case "COMMAND":
+			conn.Write([]byte("+Empty\r\n"))
+		default:
+			conn.Write([]byte("+Error\r\n"))
 		}
 	}
 }
