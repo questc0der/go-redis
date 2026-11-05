@@ -8,10 +8,12 @@ import  (
 	"bufio"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type Args struct{
 	args map[string]string
+	rmw sync.RWMutex
 }
 
 
@@ -57,20 +59,32 @@ func handleConnection(conn net.Conn, args *Args) {
 		case "COMMAND":
 			conn.Write([]byte("+Empty\r\n"))
 		case "SET":
-			if len(command) > 2{
-				args.args[command[1]] = command[2]
-				conn.Write([]byte("+OK\r\n"))
-			}else{
+			if len(command) != 3{
 				conn.Write([]byte("-ERR wrong number of argument for 'set' command\r\n"))
+				continue
+			}else {
+			args.rmw.Lock()
+			args.args[command[1]] = command[2]
+			args.rmw.Unlock()
+			
+			conn.Write([]byte("+OK\r\n"))
 			}
 		case "GET":
-			var response []byte
-			if len(command) > 1{
-				response = fmt.Appendf(response, "$%d\r\n%s\r\n", len(args.args[command[1]]), args.args[command[1]])
-				conn.Write(response)
-			}else{
-				conn.Write([]byte("-ERR wrong number of argument for 'get' command\r\n"))
+			if len(command) != 2 {
+				conn.Write([]byte("-ERR wrong number of arguments for 'get' command\r\n"))
+				continue
 			}
+			
+			args.rmw.Lock()
+			value, ok := args.args[command[1]]
+			args.rmw.Unlock()
+
+			if !ok{
+				conn.Write([]byte("$-1\r\n"))
+				continue
+			}
+			response := fmt.Appendf(nil, "$%d\r\n%s\r\n", len(value), value)
+			conn.Write(response)
 		default:
 			conn.Write([]byte("-Error unknown command\r\n"))
 		}
