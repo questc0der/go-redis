@@ -10,11 +10,14 @@ import  (
 	"strings"
 )
 
+type Args struct{
+	args map[string]string
+}
 
-func handleConnection(conn net.Conn) {
+
+func handleConnection(conn net.Conn, args *Args) {
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
-	args := make(map[string]string)
 	for {
 		var command []string
 
@@ -55,7 +58,7 @@ func handleConnection(conn net.Conn) {
 			conn.Write([]byte("+Empty\r\n"))
 		case "SET":
 			if len(command) > 2{
-				args[command[1]] = command[2]
+				args.args[command[1]] = command[2]
 				conn.Write([]byte("+OK\r\n"))
 			}else{
 				conn.Write([]byte("-ERR wrong number of argument for 'set' command\r\n"))
@@ -63,7 +66,7 @@ func handleConnection(conn net.Conn) {
 		case "GET":
 			var response []byte
 			if len(command) > 1{
-				response = fmt.Appendf(response, "$%d\r\n%s\r\n", len(args[command[1]]), args[command[1]])
+				response = fmt.Appendf(response, "$%d\r\n%s\r\n", len(args.args[command[1]]), args.args[command[1]])
 				conn.Write(response)
 			}else{
 				conn.Write([]byte("-ERR wrong number of argument for 'get' command\r\n"))
@@ -80,11 +83,12 @@ func main () {
 	if err != nil {
 		log.Printf("ERR: %v", err)
 	}
+	args := &Args{args: make(map[string]string)}
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
 			log.Printf("Err: %v", err)
 		}
-		go handleConnection(conn)
+		go handleConnection(conn, args)
 	}
 }
