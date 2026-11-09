@@ -9,11 +9,35 @@ import  (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
+type Expire struct{
+	Value string
+	Cat string
+	Time string
+}
+
 type Args struct{
-	args map[string]string
+	args map[string]Expire
 	rmw sync.RWMutex
+}
+
+func sweeper(store *Args) {
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		now := time.Now()
+
+		store.rmw.Lock()
+		for key, entry := range store.args {
+			if !entry.expiresAt.IsZero() && now.After(entry.expiresAt) {
+				delete(store.args, key)
+			}
+		}
+		store.rmw.Unlock()
+	}
 }
 
 
@@ -62,11 +86,21 @@ func handleConnection(conn net.Conn, args *Args) {
 			if len(command) != 3{
 				conn.Write([]byte("-ERR wrong number of argument for 'set' command\r\n"))
 				continue
+			}else if len(command) > 3 {
+			second, ok := strconv.Atoi(command[4])
+			if !ok{
+				log.Printf("Converting time error")
+			}
+			now := time.Now()
+			duration := now.Add(second * time.Second)
+			args.rmw.Lock()
+			args.args[command[1]] = Expire{Value: command[2], Cat:command[3], Time: command[4]}
+			args.rmw.Unlock()
+			conn.Write([]byte("+OK\r\n"))
 			}else {
 			args.rmw.Lock()
-			args.args[command[1]] = command[2]
+			args.args[command[1]] = Expire{Value: command[2]}
 			args.rmw.Unlock()
-			
 			conn.Write([]byte("+OK\r\n"))
 			}
 		case "GET":
@@ -83,7 +117,7 @@ func handleConnection(conn net.Conn, args *Args) {
 				conn.Write([]byte("$-1\r\n"))
 				continue
 			}
-			response := fmt.Appendf(nil, "$%d\r\n%s\r\n", len(value), value)
+			response := fmt.Appendf(nil, "$%d\r\n%s\r\n", len(value.Value), value.Value)
 			conn.Write(response)
 		default:
 			conn.Write([]byte("-Error unknown command\r\n"))
@@ -97,7 +131,9 @@ func main () {
 	if err != nil {
 		log.Printf("ERR: %v", err)
 	}
-	args := &Args{args: make(map[string]string)}
+	args := &Args{args: make(map[string]Expire)}
+	go sweeper(args)
+
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
