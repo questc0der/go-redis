@@ -12,15 +12,14 @@ import  (
 	"time"
 )
 
-type Expire struct{
-	Value string
-	Cat string
-	Time string
+type Expire struct {
+	Value     string
+	ExpiresAt time.Time // zero value = no expiry
 }
 
-type Args struct{
+type Args struct {
 	args map[string]Expire
-	rmw sync.RWMutex
+	rmw  sync.RWMutex
 }
 
 func sweeper(store *Args) {
@@ -32,7 +31,7 @@ func sweeper(store *Args) {
 
 		store.rmw.Lock()
 		for key, entry := range store.args {
-			if !entry.expiresAt.IsZero() && now.After(entry.expiresAt) {
+			if !entry.ExpiresAt.IsZero() && now.After(entry.ExpiresAt) {
 				delete(store.args, key)
 			}
 		}
@@ -83,42 +82,45 @@ func handleConnection(conn net.Conn, args *Args) {
 		case "COMMAND":
 			conn.Write([]byte("+Empty\r\n"))
 		case "SET":
-			if len(command) != 3{
-				conn.Write([]byte("-ERR wrong number of argument for 'set' command\r\n"))
+			if len(command) != 3 && len(command) != 5 {
+				conn.Write([]byte("-ERR wrong number of arguments for 'set' command\r\n"))
 				continue
-			}else if len(command) > 3 {
-			second, ok := strconv.Atoi(command[4])
-			if !ok{
-				log.Printf("Converting time error")
 			}
-			now := time.Now()
-			duration := now.Add(second * time.Second)
+
+			entry := Expire{Value: command[2]}
+
+			if len(command) == 5 {
+				if strings.ToUpper(command[3]) != "EX" {
+					conn.Write([]byte("-ERR syntax error\r\n"))
+					continue
+				}
+				seconds, err := strconv.Atoi(command[4])
+				if err != nil || seconds <= 0 {
+					conn.Write([]byte("-ERR value is not an integer or out of range\r\n"))
+					continue
+				}
+				entry.ExpiresAt = time.Now().Add(time.Duration(seconds) * time.Second)
+			}
+
 			args.rmw.Lock()
-			args.args[command[1]] = Expire{Value: command[2], Cat:command[3], Time: command[4]}
+			args.args[command[1]] = entry
 			args.rmw.Unlock()
 			conn.Write([]byte("+OK\r\n"))
-			}else {
-			args.rmw.Lock()
-			args.args[command[1]] = Expire{Value: command[2]}
-			args.rmw.Unlock()
-			conn.Write([]byte("+OK\r\n"))
-			}
 		case "GET":
 			if len(command) != 2 {
 				conn.Write([]byte("-ERR wrong number of arguments for 'get' command\r\n"))
 				continue
 			}
-			
-			args.rmw.Lock()
-			value, ok := args.args[command[1]]
-			args.rmw.Unlock()
 
-			if !ok{
+			args.rmw.RLock()
+			entry, ok := args.args[command[1]]
+			args.rmw.RUnlock()
+
+			if !ok || (!entry.ExpiresAt.IsZero() && time.Now().After(entry.ExpiresAt)) {
 				conn.Write([]byte("$-1\r\n"))
 				continue
 			}
-			response := fmt.Appendf(nil, "$%d\r\n%s\r\n", len(value.Value), value.Value)
-			conn.Write(response)
+			conn.Write(fmt.Appendf(nil, "$%d\r\n%s\r\n", len(entry.Value), entry.Value))
 		default:
 			conn.Write([]byte("-Error unknown command\r\n"))
 		}
