@@ -3,6 +3,8 @@ package main
 import (
 	"sync"
 	"time"
+	"strconv"
+	"log"
 )
 
 type entry struct {
@@ -59,6 +61,20 @@ func (s *Store) Exists(key []string) (int, error){
 		}
 	}
 	return count, nil
+}
+
+func (s *Store) Increment(key string) (int, bool){
+	num, err := strconv.Atoi(s.data[key].value)
+	if err != nil {
+		log.Printf("Increment err: %v", err)
+	}
+	entry := s.data[key]
+	num++
+	entry.value = strconv.Itoa(num)
+	s.mu.Lock()
+	s.data[key] = entry
+	s.mu.Unlock()
+	return num, true
 }
 
 func (s *Store) sweep() {

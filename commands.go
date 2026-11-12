@@ -16,6 +16,7 @@ var commands = map[string]handler{
 	"COMMAND": cmdCommand,
 	"DEL": cmdDel,
 	"EXISTS": cmdExists,
+	"INCR": cmdIncrement,
 }
 
 func cmdPing(store *Store, args []string) []byte {
@@ -82,6 +83,17 @@ func cmdExists(store *Store, args []string) []byte{
 	}
 	value, err := store.Exists(args[1:])
 	if err != nil{
+		return nullBulk()
+	}
+	return integerReply(value)
+}
+
+func cmdIncrement(store *Store, args []string) []byte{
+	if len(args) != 2{
+		return errorReply("wrong number of arguments for 'incr' command")
+	}
+	value, ok := store.Increment(args[1])
+	if !ok{
 		return nullBulk()
 	}
 	return integerReply(value)
