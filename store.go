@@ -36,6 +36,17 @@ func (s *Store) Get(key string) (string, bool) {
 	return e.value, true
 }
 
+func (s *Store) Delete(key string) (int, error){
+	deletedCount := 0
+	if _, exists := s.data[key]; exists{
+		s.mu.Lock()
+		delete(s.data, key)
+		s.mu.Unlock()
+		deletedCount++
+	}
+	return deletedCount, nil
+}
+
 func (s *Store) sweep() {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
