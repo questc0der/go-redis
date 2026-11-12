@@ -65,10 +65,10 @@ func cmdGet(store *Store, args []string) []byte {
 }
 
 func cmdDel(store *Store, args []string) []byte{
-	if len(args) != 2{
+	if !(len(args) > 1){
 		return errorReply("wrong number of arguments for 'del' command")
 	}
-	value, err := store.Delete(args[1])
+	value, err := store.Delete(args[1:])
 	if err != nil{
 		return nullBulk()
 	}

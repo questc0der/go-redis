@@ -36,13 +36,15 @@ func (s *Store) Get(key string) (string, bool) {
 	return e.value, true
 }
 
-func (s *Store) Delete(key string) (int, error){
+func (s *Store) Delete(key []string) (int, error){
 	deletedCount := 0
-	if _, exists := s.data[key]; exists{
-		s.mu.Lock()
-		delete(s.data, key)
-		s.mu.Unlock()
-		deletedCount++
+	for i := 0; i < len(key); i++{
+		if _, exists := s.data[key[i]]; exists{
+			s.mu.Lock()
+			delete(s.data, key[i])
+			s.mu.Unlock()
+			deletedCount++
+		}
 	}
 	return deletedCount, nil
 }
