@@ -15,6 +15,7 @@ var commands = map[string]handler{
 	"GET":     cmdGet,
 	"COMMAND": cmdCommand,
 	"DEL": cmdDel,
+	"EXISTS": cmdExists,
 }
 
 func cmdPing(store *Store, args []string) []byte {
@@ -69,6 +70,17 @@ func cmdDel(store *Store, args []string) []byte{
 		return errorReply("wrong number of arguments for 'del' command")
 	}
 	value, err := store.Delete(args[1:])
+	if err != nil{
+		return nullBulk()
+	}
+	return integerReply(value)
+}
+
+func cmdExists(store *Store, args []string) []byte{
+	if !(len(args) > 1) {
+		return errorReply("wrong number of arguments for 'exists' command")
+	}
+	value, err := store.Exists(args[1:])
 	if err != nil{
 		return nullBulk()
 	}
