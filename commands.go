@@ -14,6 +14,7 @@ var commands = map[string]handler{
 	"SET":     cmdSet,
 	"GET":     cmdGet,
 	"COMMAND": cmdCommand,
+	"DEL": cmdDel,
 }
 
 func cmdPing(store *Store, args []string) []byte {
@@ -61,4 +62,15 @@ func cmdGet(store *Store, args []string) []byte {
 		return nullBulk()
 	}
 	return bulkString(value)
+}
+
+func cmdDel(store *Store, args []string) []byte{
+	if len(args) != 2{
+		return errorReply("wrong number of arguments for 'del' command")
+	}
+	value, err := store.Delete(args[1])
+	if err != nil{
+		return nullBulk()
+	}
+	return integerReply(value)
 }
