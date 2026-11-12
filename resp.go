@@ -63,6 +63,7 @@ func simpleString(s string) []byte { return []byte("+" + s + "\r\n") }
 func errorReply(msg string) []byte { return []byte("-ERR " + msg + "\r\n") }
 func nullBulk() []byte             { return []byte("$-1\r\n") }
 func emptyArray() []byte           { return []byte("*0\r\n") }
+func integerReply(n int) []byte { return []byte(":" + strconv.Itoa(n) + "\r\n")}
 func bulkString(s string) []byte {
 	return fmt.Appendf(nil, "$%d\r\n%s\r\n", len(s), s)
 }
